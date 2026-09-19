@@ -141,6 +141,8 @@
     hydration: document.getElementById('hydration'),
     loafCount: document.getElementById('loaf-count'),
     loafSize: document.getElementById('loaf-size'),
+    loafCountLabel: document.getElementById('loaf-count-label'),
+    loafSizeLabel: document.getElementById('loaf-size-label'),
     breadNote: document.getElementById('bread-note'),
     hydrationNote: document.getElementById('hydration-note'),
     loafSizeNote: document.getElementById('loaf-size-note'),
@@ -181,8 +183,13 @@
     return n + ' ' + unit + 's';
   }
 
+  function labelFor(unit) {
+    return unit.charAt(0).toUpperCase() + unit.slice(1);
+  }
+
   function populateCount() {
     const unit = currentBread().unit;
+    el.loafCountLabel.textContent = 'Number of ' + plural(unit, 2).slice(2);
     fillSelect(el.loafCount,
       [1, 2, 3, 4, 6, 8, 12].map(function (n) {
         return { value: String(n), label: plural(unit, n) };
@@ -192,6 +199,8 @@
 
   function populateSizes() {
     const sizes = currentBread().sizes;
+    const unit = currentBread().unit;
+    el.loafSizeLabel.textContent = labelFor(unit) + ' size';
     const preferred = sizes.some(function (s) { return s.key === el.loafSize.value; })
       ? el.loafSize.value
       : (sizes.find(function (s) { return s.key === 'regular' || s.key === 'medium'; }) || sizes[0]).key;
