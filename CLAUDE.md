@@ -60,8 +60,11 @@ tables you've marked private), etc.
 
 ## About Bread Bot
 
-_(add a sentence or two of product context here so Claude Code has a
-shared understanding of what this app is for)_
+A client-side bread recipe calculator. Users pick bread type, hydration,
+loaf count and loaf size; the app renders ingredient weights (baker's
+percentages scaled off total flour), rise times, and baking temperature
+and time. There is no database-backed feature yet; the recipe data lives
+in `public/js/app.js`.
 
 ## App-specific conventions
 
