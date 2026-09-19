@@ -7,8 +7,9 @@
 (function () {
   'use strict';
 
-  // Loaf size ladder shared by every bread type.
-  const SIZES = [
+  // Size ladders. Bread uses loaf weights; bagels and pretzels use
+  // per-piece weights, since those are portioned by count, not by tin.
+  const LOAF_SIZES = [
     { key: 'small',      label: 'Small',       grams: 400 },
     { key: 'medium',     label: 'Medium',      grams: 680 },
     { key: 'large',      label: 'Large',       grams: 900 },
@@ -16,10 +17,24 @@
     { key: 'party',      label: 'Party',       grams: 1600 },
   ];
 
+  const BAGEL_SIZES = [
+    { key: 'mini',    label: 'Mini',    grams: 60 },
+    { key: 'regular', label: 'Regular', grams: 100 },
+    { key: 'large',   label: 'Large',   grams: 130 },
+  ];
+
+  const PRETZEL_SIZES = [
+    { key: 'mini',    label: 'Mini',    grams: 45 },
+    { key: 'regular', label: 'Regular', grams: 90 },
+    { key: 'large',   label: 'Large',   grams: 140 },
+  ];
+
   const BREADS = [
     {
       id: 'sourdough',
       name: 'Sourdough',
+      unit: 'loaf',
+      sizes: LOAF_SIZES,
       note: 'Wild yeast, long fermentation, tangy crumb.',
       hydration: [65, 70, 75, 80],
       ingredients: { salt: 2, starter: 20 },
@@ -33,6 +48,8 @@
     {
       id: 'bagel',
       name: 'Bagel',
+      unit: 'bagel',
+      sizes: BAGEL_SIZES,
       note: 'Chewy, dense, boiled before baking. The dough is stiff, so hydration stays low.',
       hydration: [50, 55, 58],
       ingredients: { salt: 2, oil: 2, malt: 2, yeast: 1 },
@@ -46,6 +63,8 @@
     {
       id: 'sourdough-bagel',
       name: 'Sourdough bagel',
+      unit: 'bagel',
+      sizes: BAGEL_SIZES,
       note: 'Bagel dough raised on a sourdough starter. Slower and tangier.',
       hydration: [50, 55, 58],
       ingredients: { salt: 2, starter: 20, oil: 2, malt: 2 },
@@ -59,6 +78,8 @@
     {
       id: 'rye',
       name: 'Rye loaf',
+      unit: 'loaf',
+      sizes: LOAF_SIZES,
       note: 'Rye has little gluten, so keep hydration moderate and expect a denser loaf.',
       hydration: [65, 70, 75],
       ingredients: { salt: 2, starter: 20, caraway: 2 },
@@ -72,6 +93,8 @@
     {
       id: 'sandwich',
       name: 'Sandwich loaf',
+      unit: 'loaf',
+      sizes: LOAF_SIZES,
       note: 'Soft crumb, enriched dough, baked in a tin.',
       hydration: [60, 63, 65],
       ingredients: { salt: 2, butter: 5, sugar: 5, milk: 10, yeast: 1.5 },
@@ -81,6 +104,21 @@
         { name: 'Tin proof', min: '45 min', max: '75 min', note: 'until the dough crowns the tin by about 2 cm' },
       ],
       bake: { temp: '190°C', steam: null, finish: '30 to 35 min until deep gold' },
+    },
+    {
+      id: 'pretzel',
+      name: 'Pretzel',
+      unit: 'pretzel',
+      sizes: PRETZEL_SIZES,
+      note: 'Chewy, alkaline-dipped, coarse salt on top. Boil in baking-soda water before baking.',
+      hydration: [50, 55, 60],
+      ingredients: { salt: 2, butter: 4, malt: 2, yeast: 1 },
+      doughYield: 1.61,
+      rises: [
+        { name: 'Bulk ferment', min: '1 h', max: '1.5 h', note: 'room temperature, until puffy' },
+        { name: 'Shape and rest', min: '20 min', max: '40 min', note: 'dip in 3% baking-soda solution, then score and salt' },
+      ],
+      bake: { temp: '220°C', steam: null, finish: '14 to 18 min until deep brown' },
     },
   ];
 
@@ -137,22 +175,34 @@
     el.hydrationNote.textContent = b.note;
   }
 
-  function populateLoafCount() {
+  function plural(unit, n) {
+    if (n === 1) return '1 ' + unit;
+    if (unit === 'loaf') return n + ' loaves';
+    return n + ' ' + unit + 's';
+  }
+
+  function populateCount() {
+    const unit = currentBread().unit;
     fillSelect(el.loafCount,
       [1, 2, 3, 4, 6, 8, 12].map(function (n) {
-        return { value: String(n), label: n === 1 ? '1 loaf' : n + ' loaves' };
+        return { value: String(n), label: plural(unit, n) };
       }),
       '2');
   }
 
-  function populateLoafSizes() {
+  function populateSizes() {
+    const sizes = currentBread().sizes;
+    const preferred = sizes.some(function (s) { return s.key === el.loafSize.value; })
+      ? el.loafSize.value
+      : (sizes.find(function (s) { return s.key === 'regular' || s.key === 'medium'; }) || sizes[0]).key;
     fillSelect(el.loafSize,
-      SIZES.map(function (s) { return { value: s.key, label: s.label + ' — ' + s.grams + ' g' }; }),
-      'medium');
+      sizes.map(function (s) { return { value: s.key, label: s.label + ' — ' + s.grams + ' g' }; }),
+      preferred);
   }
 
   function currentSize() {
-    return SIZES.find(function (s) { return s.key === el.loafSize.value; }) || SIZES[1];
+    const sizes = currentBread().sizes;
+    return sizes.find(function (s) { return s.key === el.loafSize.value; }) || sizes[0];
   }
 
   function compute() {
@@ -160,6 +210,7 @@
     const hydration = parseInt(el.hydration.value, 10);
     const count = parseInt(el.loafCount.value, 10);
     const size = currentSize();
+    const unit = b.unit;
 
     const totalLoafGrams = size.grams * count;
     const totalFlour = totalLoafGrams / b.doughYield;
@@ -174,7 +225,7 @@
     el.result.innerHTML =
       '<div>' +
       '<div class="text-xs uppercase tracking-wide text-violet-300 font-semibold">Recipe</div>' +
-      '<div class="text-sm text-zinc-400 mt-0.5">' + b.name + ', ' + hydration + '% hydration, ' + count + (count === 1 ? ' loaf' : ' loaves') + ' at ' + size.grams + ' g (' + totalLoafGrams + ' g total)</div>' +
+      '<div class="text-sm text-zinc-400 mt-0.5">' + b.name + ', ' + hydration + '% hydration, ' + plural(unit, count) + ' at ' + size.grams + ' g (' + totalLoafGrams + ' g total)</div>' +
       '</div>' +
 
       '<div class="rounded-lg border border-zinc-700/50 divide-y divide-zinc-700/50">' +
@@ -209,9 +260,12 @@
 
   function syncAll() {
     populateHydration();
-    populateLoafCount();
-    populateLoafSizes();
-    el.loafSizeNote.textContent = 'Dough weight before bake loss. Baked loaves come out about 10 to 15% lighter.';
+    populateCount();
+    populateSizes();
+    const isPiece = currentBread().unit !== 'loaf';
+    el.loafSizeNote.textContent = isPiece
+      ? 'Weight per piece of raw dough. Baked pieces come out about 10 to 15% lighter.'
+      : 'Dough weight before bake loss. Baked loaves come out about 10 to 15% lighter.';
     compute();
   }
 
