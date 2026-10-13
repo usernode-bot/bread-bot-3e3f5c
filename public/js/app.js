@@ -278,11 +278,57 @@
     compute();
   }
 
+  // Last-used settings, remembered on this device via localStorage.
+  const STORAGE_KEY = 'breadbot.settings.v1';
+
+  function loadSettings() {
+    try {
+      const o = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      return o && typeof o === 'object' ? o : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function saveSettings() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        bread: el.breadType.value,
+        hydration: el.hydration.value,
+        count: el.loafCount.value,
+        size: el.loafSize.value,
+      }));
+    } catch (e) {
+      // Private browsing or full storage: keep working without persistence.
+    }
+  }
+
+  function hasOption(sel, v) {
+    return typeof v === 'string' && Array.prototype.some.call(sel.options, function (o) {
+      return o.value === v;
+    });
+  }
+
+  function restoreSettings() {
+    const s = loadSettings();
+    if (s && hasOption(el.breadType, s.bread)) el.breadType.value = s.bread;
+    if (s && typeof s.size === 'string') el.loafSize.value = s.size;
+    syncAll();
+    if (!s) return;
+    if (hasOption(el.hydration, s.hydration)) el.hydration.value = s.hydration;
+    if (hasOption(el.loafCount, s.count)) el.loafCount.value = s.count;
+    if (hasOption(el.loafSize, s.size)) el.loafSize.value = s.size;
+    compute();
+  }
+
   el.breadType.addEventListener('change', syncAll);
   el.hydration.addEventListener('change', compute);
   el.loafCount.addEventListener('change', compute);
   el.loafSize.addEventListener('change', compute);
+  // Select change events bubble to the form, so this runs after the
+  // handlers above and saves the values syncAll() settled on.
+  document.getElementById('calc-form').addEventListener('change', saveSettings);
 
   populateBreads();
-  syncAll();
+  restoreSettings();
 })();
